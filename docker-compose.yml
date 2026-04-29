@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Mémoire — docker-compose.yml
+#
+#  Services:
+#    frontend  — Nginx serving index.html, proxies /api/* to backend
+#    backend   — Spring Boot app with H2 file database
+#
+#  Volumes:
+#    memoire-db — persists the H2 .mv.db file across container restarts
+#
+#  Usage:
+#    docker-compose up --build          start everything (rebuild images)
+#    docker-compose up -d               start in background
+#    docker-compose down                stop and remove containers
+#    docker-compose down -v             stop and also delete the DB volume
+#    docker-compose logs -f backend     tail backend logs
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend: Spring Boot ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .                      # project root
+      dockerfile: Dockerfile.backend
+    container_name: memoire-backend
+    restart: unless-stopped
+    volumes:
+      # Mount named volume to /data so the H2 file survives restarts
+      - memoire-db:/data
+    environment:
+      # These override application.properties at runtime
+      SPRING_DATASOURCE_URL: jdbc:h2:file:/data/memoiredb
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_H2_CONSOLE_ENABLED: "true"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: "8080"
+    # Backend is NOT exposed on the host — only the frontend talks to it
+    # via Docker's internal network. Remove the '#' below if you need
+    # direct access to the backend for debugging.
+    # ports:
+    #   - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/photos || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Frontend: Nginx ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: memoire-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"           # Access the app at http://localhost
+    depends_on:
+      backend:
+        condition: service_healthy   # wait until backend passes health check
+
+# ── Named volume for H2 database file ─────────────────────────────────────────
+volumes:
+  memoire-db:
+    driver: local

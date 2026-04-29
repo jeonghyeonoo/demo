@@ -1,0 +1,20 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Mémoire — Frontend Dockerfile
+#  Serves index.html with Nginx.
+#  API calls from the browser go to /api/* which Nginx proxies to the
+#  backend container — so the browser never needs to know the backend's
+#  internal hostname or port.
+# ─────────────────────────────────────────────────────────────────────────────
+
+FROM nginx:1.27-alpine
+
+# Remove the default Nginx config
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy our custom Nginx config (created below in docker-compose context)
+COPY nginx.conf /etc/nginx/conf.d/memoire.conf
+
+# Copy the frontend HTML file into the Nginx web root
+COPY index.html /usr/share/nginx/html/index.html
+
+EXPOSE 80

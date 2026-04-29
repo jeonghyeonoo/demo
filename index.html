@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memoire — Photo Map Album</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --ink: #1a1510;
+      --warm: #f5efe6;
+      --cream: #faf7f2;
+      --gold: #c9a84c;
+      --rust: #b85c38;
+      --sage: #6b7c5e;
+      --mist: #e8e2d9;
+      --shadow: rgba(26, 21, 16, 0.14);
+      --plan: #4a7fa5;
+      --plan-lt: #e8f2f9;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 60px;
+      background: var(--ink);
+      border-bottom: 2px solid var(--gold);
+    }
+
+    header .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      letter-spacing: .04em;
+      color: var(--cream);
+    }
+
+    header .logo span {
+      color: var(--gold);
+      font-style: italic;
+    }
+
+    header .actions {
+      display: flex;
+      gap: .75rem;
+    }
+
+    header button {
+      font-family: 'DM Sans', sans-serif;
+      font-size: .8rem;
+      font-weight: 500;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .45rem 1.1rem;
+      border: 1.5px solid var(--gold);
+      border-radius: 2px;
+      background: transparent;
+      color: var(--gold);
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+
+    header button:hover {
+      background: var(--gold);
+      color: var(--ink);
+    }
+
+    header button.primary {
+      background: var(--gold);
+      color: var(--ink);
+    }
+
+    header button.primary:hover {
+      background: #b8922a;
+      border-color: #b8922a;
+    }
+
+    /* ── Layout ──────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      padding-top: 60px;
+      overflow: hidden;
+    }
+
+    /* ── Gallery panel ───────────────────────── */
+    #gallery-panel {
+      width: var(--gallery-w, calc(100vw - 420px));
+      min-width: 280px;
+      max-width: calc(100vw - 240px);
+      flex-shrink: 0;
+      overflow-y: auto;
+      background: var(--cream);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* ── Resizer handle ──────────────────────── */
+    #resizer {
+      width: 5px;
+      flex-shrink: 0;
+      background: var(--mist);
+      cursor: col-resize;
+      position: relative;
+      transition: background .15s;
+      z-index: 10;
+      user-select: none;
+    }
+
+    #resizer:hover,
+    #resizer.dragging {
+      background: var(--gold);
+    }
+
+    #resizer .resizer-dots {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    #resizer .resizer-dots span {
+      display: block;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--ink);
+      opacity: .35;
+    }
+
+    .panel-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.05rem;
+      font-style: italic;
+      color: var(--gold);
+      letter-spacing: .04em;
+      border-bottom: 1px solid var(--mist);
+      padding-bottom: .6rem;
+    }
+
+    #photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+
+    .photo-card {
+      position: relative;
+      border-radius: 3px;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 2px 8px var(--shadow);
+      transition: transform .22s, box-shadow .22s;
+      aspect-ratio: 1;
+      background: var(--mist);
+    }
+
+    .photo-card:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .photo-card.active {
+      outline: 3px solid var(--gold);
+      outline-offset: 2px;
+    }
+
+    .photo-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .photo-card .card-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(26, 21, 16, .75));
+      padding: .5rem .6rem .45rem;
+      font-size: .72rem;
+      color: #ede7dc;
+    }
+
+    .photo-card .card-info .place {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .photo-card .card-info .date {
+      opacity: .7;
+      font-size: .66rem;
+    }
+
+    .photo-card .pin-dot {
+      position: absolute;
+      top: .45rem;
+      right: .45rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--gold);
+      border: 1.5px solid #fff;
+    }
+
+    /* ── Multi-photo count overlay (shown on hover) ── */
+    .photo-card .photo-count-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(26, 21, 16, 0.38);
+      opacity: 0;
+      transition: opacity .2s;
+      pointer-events: none;
+    }
+
+    .photo-card:hover .photo-count-overlay {
+      opacity: 1;
+    }
+
+    .photo-card .photo-count-overlay .count-label {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.92);
+      letter-spacing: .04em;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, .4);
+    }
+
+    .photo-card .photo-count-overlay .count-sub {
+      font-size: .65rem;
+      color: rgba(255, 255, 255, .72);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-top: .1rem;
+    }
+
+    /* ── Map panel ───────────────────────────── */
+    #map-panel {
+      flex: 1;
+      min-width: 240px;
+      background: var(--mist);
+      border-left: 2px solid var(--mist);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    #map-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Photo detail drawer ──────────────────── */
+    #detail-drawer {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      width: var(--map-w, 420px);
+      background: var(--ink);
+      color: var(--cream);
+      border-top: 2px solid var(--gold);
+      border-left: 2px solid #2e2820;
+      transform: translateY(100%);
+      transition: transform .35s cubic-bezier(.4, 0, .2, 1);
+      z-index: 50;
+      max-height: 55vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #detail-drawer.open {
+      transform: translateY(0);
+    }
+
+    #detail-drawer .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .8rem 1.2rem;
+      border-bottom: 1px solid #2e2820;
+    }
+
+    #detail-drawer .drawer-header h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      font-weight: 400;
+    }
+
+    #detail-drawer .close-btn {
+      background: none;
+      border: none;
+      color: var(--cream);
+      cursor: pointer;
+      font-size: 1.3rem;
+      line-height: 1;
+      opacity: .6;
+      transition: opacity .2s;
+    }
+
+    #detail-drawer .close-btn:hover {
+      opacity: 1;
+    }
+
+    #detail-drawer .drawer-body {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 1.2rem;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    #detail-drawer .drawer-body img {
+      width: 130px;
+      height: 130px;
+      object-fit: cover;
+      border-radius: 3px;
+      flex-shrink: 0;
+      border: 1.5px solid #2e2820;
+    }
+
+    #detail-drawer .drawer-meta {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+    }
+
+    #detail-drawer .drawer-meta .meta-row {
+      display: flex;
+      flex-direction: column;
+      gap: .1rem;
+    }
+
+    #detail-drawer .drawer-meta .meta-label {
+      font-size: .68rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    #detail-drawer .drawer-meta .meta-value {
+      font-size: .85rem;
+      opacity: .88;
+    }
+
+    .delete-btn {
+      margin: 0 1.2rem 1rem;
+      padding: .5rem;
+      background: none;
+      border: 1px solid #6b3333;
+      border-radius: 2px;
+      color: #e07575;
+      font-size: .78rem;
+      cursor: pointer;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      transition: background .2s, color .2s;
+    }
+
+    .delete-btn:hover {
+      background: #6b3333;
+      color: #fff;
+    }
+
+    /* ── Upload modal ─────────────────────────── */
+    #upload-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(26, 21, 16, .7);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+
+    #upload-modal.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--cream);
+      border-radius: 4px;
+      border: 1.5px solid var(--mist);
+      padding: 2rem;
+      width: 480px;
+      max-width: 95vw;
+      box-shadow: 0 24px 64px rgba(26, 21, 16, .3);
+    }
+
+    .modal-box h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      margin-bottom: 1.4rem;
+      color: var(--ink);
+    }
+
+    .form-row {
+      margin-bottom: 1rem;
+    }
+
+    .form-row label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 500;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: .35rem;
+      color: var(--rust);
+    }
+
+    .form-row input,
+    .form-row textarea {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1.5px solid var(--mist);
+      border-radius: 2px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .88rem;
+      color: var(--ink);
+      background: #fff;
+      transition: border-color .2s;
+    }
+
+    .form-row input:focus,
+    .form-row textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    .form-row textarea {
+      height: 72px;
+      resize: vertical;
+    }
+
+    .coord-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--mist);
+      border-radius: 3px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      color: #999;
+      font-size: .85rem;
+      transition: border-color .2s, background .2s;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--gold);
+      background: #fdf8ef;
+    }
+
+    .drop-zone .dz-preview {
+      margin-top: .75rem;
+      max-height: 100px;
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .drop-zone .dz-preview img {
+      height: 80px;
+      border-radius: 2px;
+      object-fit: cover;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: .75rem;
+      justify-content: flex-end;
+      margin-top: 1.4rem;
+    }
+
+    .modal-actions button {
+      font-family: 'DM Sans', sans-serif;
+      font-size: .82rem;
+      font-weight: 500;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: .55rem 1.4rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+
+    .btn-cancel {
+      background: none;
+      border: 1.5px solid var(--mist);
+      color: #888;
+    }
+
+    .btn-cancel:hover {
+      border-color: #aaa;
+      color: var(--ink);
+    }
+
+    .btn-save {
+      background: var(--gold);
+      border: 1.5px solid var(--gold);
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .btn-save:hover {
+      background: #b8922a;
+      border-color: #b8922a;
+    }
+
+    /* ── Empty state ─────────────────────────── */
+    .empty-state {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #b0a898;
+    }
+
+    .empty-state .icon {
+      font-size: 2.5rem;
+      margin-bottom: .75rem;
+    }
+
+    .empty-state p {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 1rem;
+    }
+
+    /* ── Map marker tooltip ───────────────────── */
+    .gm-tooltip {
+      background: var(--ink);
+      color: var(--cream);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem;
+      padding: .4rem .7rem;
+      border-radius: 2px;
+      white-space: nowrap;
+      border: 1px solid var(--gold);
+    }
+
+    /* scrollbar */
+    #gallery-panel::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    #gallery-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #gallery-panel::-webkit-scrollbar-thumb {
+      background: var(--mist);
+      border-radius: 4px;
+    }
+
+    @media (max-width: 768px) {
+      #app {
+        flex-direction: column;
+      }
+
+      #gallery-panel {
+        width: 100% !important;
+        max-width: 100%;
+        min-width: 0;
+        height: 50vh;
+      }
+
+      #resizer {
+        width: 100%;
+        height: 5px;
+        cursor: row-resize;
+      }
+
+      #map-panel {
+        min-width: 0;
+        order: -1;
+        border-left: none;
+        border-bottom: 2px solid var(--mist);
+      }
+
+      #detail-drawer {
+        width: 100%;
+      }
+    }
+
+    /* ── Pin Plan button ─────────────────────────── */
+    #btn-pin-mode {
+      border-color: var(--plan);
+      color: #7fb8d8;
+      position: relative;
+      padding: .45rem .75rem;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    #btn-pin-mode.active {
+      background: var(--plan);
+      color: #fff;
+      border-color: var(--plan);
+    }
+
+    #btn-pin-mode.active::after {
+      content: '';
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff6b6b;
+      border: 1.5px solid var(--ink);
+    }
+
+    /* Pin-mode banner on map */
+    #pin-banner {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--plan);
+      color: #fff;
+      font-size: .78rem;
+      font-weight: 500;
+      letter-spacing: .06em;
+      padding: .4rem 1.1rem;
+      border-radius: 20px;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity .25s;
+      white-space: nowrap;
+    }
+
+    #pin-banner.show {
+      opacity: 1;
+    }
+
+    /* ── Plan card ───────────────────────────────── */
+    .plan-card {
+      position: relative;
+      border-radius: 3px;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 2px 8px var(--shadow);
+      transition: transform .22s, box-shadow .22s;
+      aspect-ratio: 1;
+      background: var(--plan-lt);
+      border: 1.5px dashed var(--plan);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .4rem;
+    }
+
+    .plan-card:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .plan-card.active {
+      outline: 3px solid var(--plan);
+      outline-offset: 2px;
+    }
+
+    .plan-card .plan-num {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: .78rem;
+      color: var(--plan);
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .plan-card .plan-add-img {
+      font-size: .65rem;
+      color: #7fb8d8;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      opacity: .85;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* show attached photo count on plan card */
+    .plan-card .plan-photo-count {
+      font-size: .62rem;
+      color: var(--plan);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      opacity: .85;
+    }
+
+    .plan-card .plan-title-text {
+      font-size: .8rem;
+      font-weight: 500;
+      color: var(--plan);
+      text-align: center;
+      padding: 0 .5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .plan-card .plan-date-text {
+      font-size: .63rem;
+      color: #7fb8d8;
+      opacity: .8;
+    }
+
+    /* numbered teardrop marker tooltip */
+    .gm-plan-tooltip {
+      background: #1a252e;
+      color: #cde8f5;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem;
+      padding: .4rem .7rem;
+      border-radius: 2px;
+      white-space: nowrap;
+      border: 1px solid var(--plan);
+    }
+
+    /* ── Plan edit drawer ────────────────────────── */
+    #plan-drawer {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      width: var(--map-w, 420px);
+      background: var(--ink);
+      color: var(--cream);
+      border-top: 2px solid var(--plan);
+      border-left: 2px solid #1e2a32;
+      transform: translateY(100%);
+      transition: transform .35s cubic-bezier(.4, 0, .2, 1);
+      z-index: 50;
+      max-height: 72vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #plan-drawer.open {
+      transform: translateY(0);
+    }
+
+    #plan-drawer .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .8rem 1.2rem;
+      border-bottom: 1px solid #1e2a32;
+    }
+
+    #plan-drawer .drawer-header h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      font-weight: 400;
+      color: #7fb8d8;
+    }
+
+    #plan-drawer .close-btn {
+      background: none;
+      border: none;
+      color: var(--cream);
+      cursor: pointer;
+      font-size: 1.3rem;
+      line-height: 1;
+      opacity: .6;
+      transition: opacity .2s;
+    }
+
+    #plan-drawer .close-btn:hover {
+      opacity: 1;
+    }
+
+    #plan-drawer .drawer-body {
+      padding: 1rem 1.2rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: .85rem;
+      flex: 1;
+    }
+
+    .pf label {
+      display: block;
+      font-size: .68rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #7fb8d8;
+      margin-bottom: .28rem;
+    }
+
+    .pf input,
+    .pf textarea,
+    .pf select {
+      width: 100%;
+      padding: .45rem .65rem;
+      background: #1e2a32;
+      border: 1.5px solid #2a3a48;
+      border-radius: 2px;
+      color: var(--cream);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .85rem;
+      transition: border-color .2s;
+    }
+
+    .pf input:focus,
+    .pf textarea:focus,
+    .pf select:focus {
+      outline: none;
+      border-color: var(--plan);
+    }
+
+    .pf textarea {
+      height: 64px;
+      resize: vertical;
+    }
+
+    .pf select option {
+      background: #1e2a32;
+    }
+
+    .pf-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .6rem;
+    }
+
+    .plan-drawer-actions {
+      display: flex;
+      gap: .6rem;
+      padding: .8rem 1.2rem;
+      border-top: 1px solid #1e2a32;
+      flex-shrink: 0;
+    }
+
+    .plan-drawer-actions button {
+      flex: 1;
+      padding: .5rem;
+      border-radius: 2px;
+      font-size: .78rem;
+      font-weight: 500;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: background .2s, color .2s;
+    }
+
+    .btn-plan-save {
+      background: var(--plan);
+      border: 1.5px solid var(--plan);
+      color: #fff;
+    }
+
+    .btn-plan-save:hover {
+      background: #3a6e94;
+    }
+
+    .btn-plan-del {
+      background: none;
+      border: 1px solid #6b3333;
+      color: #e07575;
+    }
+
+    .btn-plan-del:hover {
+      background: #6b3333;
+      color: #fff;
+    }
+
+    .btn-plan-cancel {
+      background: none;
+      border: 1.5px solid #2a3a48;
+      color: #777;
+    }
+
+    .btn-plan-cancel:hover {
+      border-color: #555;
+      color: #ccc;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">mé<span>moire</span></div>
+    <div class="actions">
+      <button id="btn-pin-mode" onclick="togglePinMode()" title="Pin a plan location on the map">📍</button>
+      <button onclick="openUploadModal()">+ Add Photo</button>
+      <button class="primary" onclick="fitAllMarkers()">View All</button>
+    </div>
+  </header>
+
+  <div id="app">
+    <div id="gallery-panel">
+      <div class="panel-title">Your Collection</div>
+      <div id="photo-grid"></div>
+    </div>
+    <div id="resizer" title="Drag to resize">
+      <div class="resizer-dots">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    <div id="map-panel">
+      <div id="map-container">
+        <div id="map"></div>
+        <div id="pin-banner">Click anywhere on the map to pin a plan location</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail drawer -->
+  <div id="detail-drawer">
+    <div class="drawer-header">
+      <h3 id="drawer-title">Photo Detail</h3>
+      <button class="close-btn" onclick="closeDrawer()">×</button>
+    </div>
+    <div class="drawer-body">
+      <img id="drawer-img" src="" alt="" />
+      <div class="drawer-meta">
+        <div class="meta-row"><span class="meta-label">Location</span><span class="meta-value" id="drawer-place"></span>
+        </div>
+        <div class="meta-row"><span class="meta-label">Date</span><span class="meta-value" id="drawer-date"></span>
+        </div>
+        <div class="meta-row"><span class="meta-label">Coordinates</span><span class="meta-value"
+            id="drawer-coords"></span></div>
+        <div class="meta-row"><span class="meta-label">Notes</span><span class="meta-value" id="drawer-notes"></span>
+        </div>
+      </div>
+    </div>
+    <button class="delete-btn" id="drawer-delete" onclick="deleteActive()">Delete Photo</button>
+  </div>
+
+
+  <!-- Plan drawer -->
+  <div id="plan-drawer">
+    <div class="drawer-header">
+      <h3 id="pd-title">Plan Location</h3>
+      <button class="close-btn" onclick="closePlanDrawer()">×</button>
+    </div>
+    <div class="drawer-body">
+      <div class="pf"><label>Title</label><input type="text" id="pd-name" placeholder="e.g. Bukchon Hanok Village" />
+      </div>
+      <div class="pf pf-row">
+        <div><label>Latitude</label><input type="number" id="pd-lat" step="any" /></div>
+        <div><label>Longitude</label><input type="number" id="pd-lng" step="any" /></div>
+      </div>
+      <div class="pf"><label>Planned Date</label><input type="date" id="pd-date" /></div>
+      <div class="pf"><label>Notes</label><textarea id="pd-notes"
+          placeholder="Opening hours, tips, must-sees…"></textarea></div>
+    </div>
+    <div class="plan-drawer-actions">
+      <button class="btn-plan-save" onclick="savePlan()">Save</button>
+      <button class="btn-plan-del" id="btn-plan-del" onclick="deletePlan()" style="display:none">Delete</button>
+      <button class="btn-plan-cancel" onclick="closePlanDrawer()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Upload modal -->
+  <div id="upload-modal">
+    <div class="modal-box">
+      <h2>Add a Memory</h2>
+      <div class="form-row">
+        <label>Photo</label>
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+          ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragleave="onDragLeave()">
+          <div id="dz-hint">Drag &amp; drop or click to browse</div>
+          <div id="dz-sub" style="font-size:.72rem;opacity:.65;margin-top:.2rem">Multiple files — one card each</div>
+          <div class="dz-preview" id="dz-preview"></div>
+        </div>
+        <input type="file" id="file-input" accept="image/*" multiple style="display:none"
+          onchange="onFileChange(event)" />
+      </div>
+      <div class="form-row">
+        <label>Place Name</label>
+        <input type="text" id="input-place" placeholder="e.g. Gyeongbokgung Palace" />
+      </div>
+      <div class="form-row coord-row">
+        <div>
+          <label>Latitude</label>
+          <input type="number" id="input-lat" placeholder="37.5796" step="any" />
+        </div>
+        <div>
+          <label>Longitude</label>
+          <input type="number" id="input-lng" placeholder="126.9770" step="any" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Date</label>
+        <input type="date" id="input-date" />
+      </div>
+      <div class="form-row">
+        <label>Notes</label>
+        <textarea id="input-notes" placeholder="What made this moment special?"></textarea>
+      </div>
+      <!-- hidden context: set when opening from a plan card -->
+      <input type="hidden" id="modal-plan-id" value="" />
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeUploadModal()">Cancel</button>
+        <button class="btn-save" id="btn-modal-save" onclick="savePhoto()">Save Memory</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Maps API — replace YOUR_API_KEY -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" async
+    defer></script>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────────
+    const API = '/api';   // Nginx proxies /api/* → backend:8080/api/*   // ← change if your server runs elsewhere
+    let photos = [];
+    let plans = [];          // plan items — loaded from /api/plans
+    let planMarkers = {}, planInfoWindows = {};
+    let activePlanId = null, pinMode = false;
+    let map, markers = {}, infoWindows = {}, activeId = null;
+    let pendingFile = null;
+    let pendingFiles = [];
+
+    // ── Plan API helpers ───────────────────────────────────────────────────────
+    async function loadPlans() {
+      try {
+        plans = await apiFetch('/plans');
+      } catch (e) {
+        console.error('Failed to load plans:', e);
+        plans = [];
+      }
+    }
+    async function apiCreatePlan(body) {
+      return apiFetch('/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+    async function apiUpdatePlan(id, body) {
+      return apiFetch(`/plans/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+    async function apiDeletePlan(id) {
+      await apiFetch(`/plans/${id}`, { method: 'DELETE' });
+    }
+
+    // ── API helpers ────────────────────────────────────────────────────────────
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(API + path, options);
+      if (!res.ok) {
+        const msg = await res.text().catch(() => res.statusText);
+        throw new Error(`API ${options.method || 'GET'} ${path} failed (${res.status}): ${msg}`);
+      }
+      // 204 No Content has no body
+      return res.status === 204 ? null : res.json();
+    }
+
+    async function loadPhotos() {
+      try {
+        photos = await apiFetch('/photos');
+        // planId comes directly from the API (PhotoDto.planId) — no re-mapping needed
+        renderAll();
+      } catch (e) {
+        console.error('Failed to load photos:', e);
+        showToast('Could not reach the server. Is Spring Boot running on port 8080?', 'error');
+      }
+    }
+
+    async function apiSavePhoto(formData) {
+      // POST multipart/form-data — image bytes + metadata in one request
+      const res = await fetch(API + '/photos', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => res.statusText);
+        throw new Error(`Save failed (${res.status}): ${msg}`);
+      }
+      return res.json();
+    }
+
+    async function apiDeletePhoto(id) {
+      await apiFetch(`/photos/${id}`, { method: 'DELETE' });
+    }
+
+    // ── Google Maps init ───────────────────────────────────────────────────────
+    // initMap must be a plain synchronous function — it is called by the
+    // Google Maps script loader as a callback and cannot be async itself.
+    // All async work is delegated to the inner initAsync() function.
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 37.5665, lng: 126.9780 },
+        zoom: 12,
+        styles: [
+          { elementType: 'geometry', stylers: [{ color: '#f5efe6' }] },
+          { elementType: 'labels.text.fill', stylers: [{ color: '#3a2e22' }] },
+          { elementType: 'labels.text.stroke', stylers: [{ color: '#faf7f2' }] },
+          { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#c9a84c', weight: 1.5 }] },
+          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#e8e2d9' }] },
+          { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#d4c9b5' }] },
+          { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#b8ccd4' }] },
+          { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#d4e2c8' }] },
+          { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+        ],
+        disableDefaultUI: false,
+        mapTypeControl: false,
+        streetViewControl: false,
+      });
+
+      // Single map click listener: pin mode OR coordinate fill
+      map.addListener('click', (e) => {
+        const lat = +e.latLng.lat().toFixed(6);
+        const lng = +e.latLng.lng().toFixed(6);
+        if (pinMode) { openPlanDrawer(null, lat, lng); return; }
+        document.getElementById('input-lat').value = lat;
+        document.getElementById('input-lng').value = lng;
+        if (document.getElementById('upload-modal').classList.contains('open')) {
+          ['input-lat', 'input-lng'].forEach(id => {
+            const el = document.getElementById(id);
+            el.style.borderColor = '#c9a84c';
+            setTimeout(() => el.style.borderColor = '', 1000);
+          });
+        }
+      });
+
+      // Hand off async data loading to a separate async function
+      initAsync();
+    }
+
+    async function initAsync() {
+      // Load plans first so photoIds are available when photos render
+      await loadPlans();
+      await loadPhotos();
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+    function renderAll() {
+      renderGallery();
+      renderMarkers();
+      renderPlanMarkers();
+    }
+
+    function renderGallery() {
+      const grid = document.getElementById('photo-grid');
+      grid.innerHTML = '';
+
+      if (photos.length === 0 && plans.length === 0) {
+        grid.innerHTML = `<div class="empty-state"><div class="icon">📷</div><p>No memories yet — add your first photo above.</p></div>`;
+        return;
+      }
+
+      // ── Plan cards first: ascending by plan number ────────────────────────
+      const sortedPlans = [...plans].sort((a, b) => a.num - b.num);
+      sortedPlans.forEach(pl => {
+        const photoIds = pl.photoIds || [];
+        const count = photoIds.length;
+        const card = document.createElement('div');
+        card.className = 'plan-card' + (activePlanId === pl.id ? ' active' : '');
+        card.dataset.planId = pl.id;
+
+        // Show first attached photo as bg if any, otherwise plain plan style
+        const thumbHtml = count > 0
+          ? `<img src="${API}/photos/${photoIds[0]}/image" alt="${pl.title}"
+               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55;" loading="lazy"/>`
+          : '';
+
+        card.innerHTML = `
+          ${thumbHtml}
+          <div class="plan-num" style="position:relative">#${pl.num}</div>
+          <div class="plan-title-text" style="position:relative">${pl.title}</div>
+          ${pl.date ? `<div class="plan-date-text" style="position:relative">${formatDate(pl.date)}</div>` : ''}
+          ${count > 0
+            ? `<div class="plan-photo-count" style="position:relative">📷 ${count} photo${count > 1 ? 's' : ''}</div>`
+            : `<div class="plan-add-img" style="position:relative">+ add image</div>`}
+        `;
+        // Clicking "+ add image" text opens modal; clicking rest of card selects
+        card.addEventListener('click', (e) => {
+          const addImg = card.querySelector('.plan-add-img');
+          if (addImg && addImg.contains(e.target)) {
+            openUploadModalForPlan(pl.id);
+          } else if (count > 0 && e.target.closest('.plan-photo-count')) {
+            openUploadModalForPlan(pl.id);
+          } else {
+            selectPlan(pl.id);
+          }
+        });
+        grid.appendChild(card);
+      });
+
+      // ── Photo cards after: oldest date first, undated at end ─────────────
+      const sortedPhotos = [...photos].sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      });
+
+      // Every photo gets its own card — no grouping
+      sortedPhotos.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'photo-card' + (activeId === p.id ? ' active' : '');
+        card.dataset.id = p.id;
+        card.innerHTML = `
+          <img src="${API}/photos/${p.id}/image" alt="${p.place}" loading="lazy" />
+          <div class="card-info">
+            <div class="place">${p.place}</div>
+            <div class="date">${formatDate(p.date)}</div>
+          </div>
+          <div class="pin-dot"></div>
+        `;
+        card.addEventListener('click', () => selectPhoto(p.id));
+        grid.appendChild(card);
+      });
+    }
+
+    function renderMarkers() {
+      // Clear old
+      Object.values(markers).forEach(m => m.setMap(null));
+      markers = {};
+      Object.values(infoWindows).forEach(iw => iw.close());
+      infoWindows = {};
+
+      photos.forEach(p => {
+        const marker = new google.maps.Marker({
+          position: { lat: p.lat, lng: p.lng },
+          map,
+          title: p.place,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: activeId === p.id ? '#c9a84c' : '#b85c38',
+            fillOpacity: 1,
+            strokeColor: '#faf7f2',
+            strokeWeight: 2,
+          },
+        });
+
+        const iw = new google.maps.InfoWindow({
+          content: `<div class="gm-tooltip"><strong>${p.place}</strong><br/><span style="opacity:.7;font-size:.72rem">${formatDate(p.date)}</span></div>`,
+          disableAutoPan: false,
+        });
+
+        marker.addListener('click', () => selectPhoto(p.id));
+        marker.addListener('mouseover', () => iw.open(map, marker));
+        marker.addListener('mouseout', () => iw.close());
+
+        markers[p.id] = marker;
+        infoWindows[p.id] = iw;
+      });
+    }
+
+    // ── Select / deselect ─────────────────────────────────────────────────────
+    function selectPhoto(id) {
+      activeId = id;
+      const p = photos.find(x => x.id === id);
+      if (!p) return;
+
+      // Gallery highlight
+      document.querySelectorAll('.photo-card').forEach(c => c.classList.toggle('active', c.dataset.id === id));
+
+      // Map pan + marker highlight
+      if (map) {
+        map.panTo({ lat: p.lat, lng: p.lng });
+        map.setZoom(14);
+        Object.entries(markers).forEach(([pid, m]) => {
+          m.setIcon({
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: pid === id ? 12 : 9,
+            fillColor: pid === id ? '#c9a84c' : '#b85c38',
+            fillOpacity: 1,
+            strokeColor: '#faf7f2',
+            strokeWeight: pid === id ? 3 : 2,
+          });
+        });
+      }
+
+      // Drawer
+      document.getElementById('drawer-img').src = `${API}/photos/${p.id}/image`;
+      document.getElementById('drawer-title').textContent = p.place;
+      document.getElementById('drawer-place').textContent = p.place;
+      document.getElementById('drawer-date').textContent = formatDate(p.date);
+      document.getElementById('drawer-coords').textContent = `${p.lat.toFixed(4)}°, ${p.lng.toFixed(4)}°`;
+      document.getElementById('drawer-notes').textContent = p.notes || '—';
+      document.getElementById('drawer-delete').dataset.id = id;
+      document.getElementById('detail-drawer').classList.add('open');
+    }
+
+
+    // ── Pin mode ───────────────────────────────────────────────────────────────
+    function togglePinMode() {
+      pinMode = !pinMode;
+      document.getElementById('btn-pin-mode').classList.toggle('active', pinMode);
+      document.getElementById('pin-banner').classList.toggle('show', pinMode);
+      map.setOptions({ draggableCursor: pinMode ? 'crosshair' : null });
+    }
+
+    // ── Plan markers ───────────────────────────────────────────────────────────
+    function renderPlanMarkers() {
+      Object.values(planMarkers).forEach(m => m.setMap(null));
+      planMarkers = {};
+      Object.values(planInfoWindows).forEach(iw => iw.close());
+      planInfoWindows = {};
+
+      plans.forEach(pl => {
+        const isActive = activePlanId === pl.id;
+        const sz = isActive ? 38 : 30;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${Math.round(sz * 1.3)}" viewBox="0 0 30 39">
+          <path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 24 15 24S30 25.5 30 15C30 6.7 23.3 0 15 0z"
+            fill="#4a7fa5" stroke="${isActive ? '#fff' : 'rgba(255,255,255,.5)'}" stroke-width="${isActive ? 2 : 1}"/>
+          <text x="15" y="17" text-anchor="middle" dominant-baseline="central"
+            font-family="'DM Sans',sans-serif" font-size="12" font-weight="700" fill="#fff">${pl.num}</text>
+        </svg>`;
+        const h = Math.round(sz * 1.3);
+        const marker = new google.maps.Marker({
+          position: { lat: pl.lat, lng: pl.lng }, map,
+          title: pl.title, zIndex: isActive ? 100 : 10,
+          icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+            scaledSize: new google.maps.Size(sz, h),
+            anchor: new google.maps.Point(sz / 2, h),
+          },
+        });
+        const iw = new google.maps.InfoWindow({
+          content: `<div class="gm-plan-tooltip"><strong>${pl.title}</strong>${pl.date ? '<br/><span style="opacity:.7;font-size:.7rem">' + formatDate(pl.date) + '</span>' : ''}</div>`,
+        });
+        marker.addListener('click', () => { selectPlan(pl.id); openPlanDrawer(pl.id); });
+        marker.addListener('mouseover', () => iw.open(map, marker));
+        marker.addListener('mouseout', () => iw.close());
+        planMarkers[pl.id] = marker;
+        planInfoWindows[pl.id] = iw;
+      });
+    }
+
+    // ── Select plan ────────────────────────────────────────────────────────────
+    function selectPlan(id) {
+      activePlanId = id;
+      activeId = null;
+      document.getElementById('detail-drawer').classList.remove('open');
+      document.querySelectorAll('.plan-card').forEach(c => c.classList.toggle('active', c.dataset.planId === id));
+      document.querySelectorAll('.photo-card').forEach(c => c.classList.remove('active'));
+      const pl = plans.find(x => x.id === id);
+      if (!pl) return;
+      if (map) { map.panTo({ lat: pl.lat, lng: pl.lng }); map.setZoom(14); }
+      renderPlanMarkers();
+    }
+
+    // ── Plan drawer open / close ───────────────────────────────────────────────
+    function openPlanDrawer(id, prefLat, prefLng) {
+      activePlanId = id;
+      const pl = id ? plans.find(x => x.id === id) : null;
+      document.getElementById('pd-title').textContent = pl ? 'Edit Plan' : 'New Plan Location';
+      document.getElementById('pd-name').value = pl ? pl.title : '';
+      document.getElementById('pd-lat').value = pl ? pl.lat : (prefLat ?? '');
+      document.getElementById('pd-lng').value = pl ? pl.lng : (prefLng ?? '');
+      document.getElementById('pd-date').value = pl ? (pl.date || '') : '';
+      document.getElementById('pd-notes').value = pl ? (pl.notes || '') : '';
+      document.getElementById('btn-plan-del').style.display = pl ? 'block' : 'none';
+      // close photo drawer
+      document.getElementById('detail-drawer').classList.remove('open');
+      document.getElementById('plan-drawer').classList.add('open');
+      if (!pl && prefLat != null) {
+        map.panTo({ lat: prefLat, lng: prefLng });
+        if (pinMode) togglePinMode();
+      }
+    }
+    function closePlanDrawer() {
+      document.getElementById('plan-drawer').classList.remove('open');
+      activePlanId = null;
+    }
+
+    // ── Save plan ──────────────────────────────────────────────────────────────
+    async function savePlan() {
+      const name = document.getElementById('pd-name').value.trim();
+      const lat = parseFloat(document.getElementById('pd-lat').value);
+      const lng = parseFloat(document.getElementById('pd-lng').value);
+      const date = document.getElementById('pd-date').value || null;
+      const notes = document.getElementById('pd-notes').value.trim();
+      if (isNaN(lat) || isNaN(lng)) { showToast('Coordinates are required.', 'error'); return; }
+
+      const btn = document.querySelector('.btn-plan-save');
+      btn.textContent = 'Saving…'; btn.disabled = true;
+      try {
+        if (activePlanId) {
+          const updated = await apiUpdatePlan(activePlanId, { title: name, lat, lng, date, notes });
+          const idx = plans.findIndex(x => x.id === activePlanId);
+          if (idx > -1) plans[idx] = updated;
+          showToast('Plan updated.');
+        } else {
+          const created = await apiCreatePlan({ title: name, lat, lng, date, notes });
+          plans.push(created);
+          showToast('Plan location added!');
+        }
+        closePlanDrawer();
+        renderAll();
+      } catch (e) {
+        showToast('Save failed: ' + e.message, 'error');
+      } finally {
+        btn.textContent = 'Save'; btn.disabled = false;
+        activePlanId = null;
+      }
+    }
+
+    // ── Delete plan ────────────────────────────────────────────────────────────
+    async function deletePlan() {
+      if (!activePlanId || !confirm('Remove this plan location?')) return;
+      try {
+        await apiDeletePlan(activePlanId);
+        // Detach photos from this plan in local state (they remain as standalone)
+        const deletedId = activePlanId;
+        photos.forEach(p => { if (p.planId === deletedId) p.planId = null; });
+        plans = plans.filter(x => x.id !== deletedId);
+        closePlanDrawer();
+        activePlanId = null;
+        renderAll();
+        showToast('Plan removed.');
+      } catch (e) {
+        showToast('Delete failed: ' + e.message, 'error');
+      }
+    }
+
+    function closeDrawer() {
+      document.getElementById('detail-drawer').classList.remove('open');
+      activeId = null;
+      document.querySelectorAll('.photo-card').forEach(c => c.classList.remove('active'));
+      if (map) renderMarkers();
+    }
+
+    async function deleteActive() {
+      if (!activeId) return;
+      if (!confirm('Delete this memory?')) return;
+      try {
+        await apiDeletePhoto(activeId);
+        // Remove from local photos array
+        const deletedId = activeId;
+        const deletedPhoto = photos.find(p => p.id === deletedId);
+        photos = photos.filter(p => p.id !== deletedId);
+        // Update local plan photoIds count (backend already updated DB)
+        if (deletedPhoto && deletedPhoto.planId) {
+          const pl = plans.find(x => x.id === deletedPhoto.planId);
+          if (pl && pl.photoIds) {
+            pl.photoIds = pl.photoIds.filter(pid => pid !== deletedId);
+          }
+        }
+        closeDrawer();
+        renderAll();
+        showToast('Memory deleted.');
+      } catch (e) {
+        showToast('Delete failed: ' + e.message, 'error');
+      }
+    }
+
+    function fitAllMarkers() {
+      if (!map) return;
+      const all = [
+        ...photos.map(p => ({ lat: p.lat, lng: p.lng })),
+        ...plans.map(pl => ({ lat: pl.lat, lng: pl.lng })),
+      ];
+      if (!all.length) return;
+      const bounds = new google.maps.LatLngBounds();
+      all.forEach(c => bounds.extend(c));
+      map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+    }
+
+    // ── Upload modal ───────────────────────────────────────────────────────────
+    function openUploadModal() {
+      // Standalone: clear plan context, all fields editable
+      document.getElementById('modal-plan-id').value = '';
+      document.getElementById('upload-modal').querySelector('h2').textContent = 'Add a Memory';
+      document.getElementById('btn-modal-save').textContent = 'Save Memory';
+      ['input-place', 'input-lat', 'input-lng'].forEach(id => {
+        const el = document.getElementById(id);
+        el.readOnly = false;
+        el.style.opacity = '';
+      });
+      const sub = document.getElementById('dz-sub');
+      if (sub) sub.textContent = 'Multiple files — one card each';
+      document.getElementById('dz-preview').innerHTML = '';
+      pendingFiles = []; pendingFile = null;
+      document.getElementById('upload-modal').classList.add('open');
+      document.getElementById('input-date').value = new Date().toISOString().slice(0, 10);
+    }
+
+    function openUploadModalForPlan(planId) {
+      const pl = plans.find(x => x.id === planId);
+      if (!pl) return;
+      // Pre-fill from plan; place+coords read-only so the photo inherits location
+      document.getElementById('modal-plan-id').value = planId;
+      document.getElementById('input-place').value = pl.title;
+      document.getElementById('input-lat').value = pl.lat;
+      document.getElementById('input-lng').value = pl.lng;
+      document.getElementById('input-date').value = pl.date || new Date().toISOString().slice(0, 10);
+      document.getElementById('input-notes').value = pl.notes || '';
+      // Lock place & coords — they belong to the plan
+      ['input-place', 'input-lat', 'input-lng'].forEach(id => {
+        const el = document.getElementById(id);
+        el.readOnly = true;
+        el.style.opacity = '.55';
+      });
+      document.getElementById('upload-modal').querySelector('h2').textContent = `Add Photo to "${pl.title}"`;
+      document.getElementById('btn-modal-save').textContent = 'Attach Photo';
+      document.getElementById('dz-preview').innerHTML = '';
+      pendingFiles = [];
+      const sub = document.getElementById('dz-sub');
+      if (sub) sub.textContent = 'Multiple files — all attached to this plan';
+      document.getElementById('dz-preview').innerHTML = '';
+      pendingFiles = []; pendingFile = null;
+      document.getElementById('upload-modal').classList.add('open');
+    }
+
+    function closeUploadModal() {
+      document.getElementById('upload-modal').classList.remove('open');
+      pendingFiles = [];
+      pendingFile = null;
+      document.getElementById('dz-preview').innerHTML = '';
+      document.getElementById('modal-plan-id').value = '';
+      ['input-place', 'input-lat', 'input-lng', 'input-notes'].forEach(id => {
+        const el = document.getElementById(id);
+        el.value = '';
+        el.readOnly = false;
+        el.style.opacity = '';
+      });
+    }
+
+    function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
+    function onDragLeave() { document.getElementById('drop-zone').classList.remove('drag-over'); }
+    function onDrop(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.remove('drag-over');
+      const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+      if (files.length) handleFiles(files);
+    }
+    function onFileChange(e) {
+      const files = [...e.target.files].filter(f => f.type.startsWith('image/'));
+      if (files.length) handleFiles(files);
+    }
+
+    function handleFiles(files) {
+      pendingFiles = files;
+      pendingFile = files[0];
+      const preview = document.getElementById('dz-preview');
+      preview.innerHTML = '';
+      // Update drop zone sub-hint to reflect selection
+      const planId = document.getElementById('modal-plan-id').value;
+      const sub = document.getElementById('dz-sub');
+      if (sub) {
+        if (planId) {
+          sub.textContent = files.length > 1
+            ? `${files.length} photos — all attached to this plan`
+            : '1 photo selected';
+        } else {
+          sub.textContent = files.length > 1
+            ? `${files.length} photos selected — one card each`
+            : '1 photo selected';
+        }
+      }
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      });
+      // EXIF GPS from first file only, only if coords not locked
+      if (!document.getElementById('input-lat').readOnly) {
+        readExifGPS(files[0]).then(({ lat, lng }) => {
+          if (lat) document.getElementById('input-lat').value = lat.toFixed(6);
+          if (lng) document.getElementById('input-lng').value = lng.toFixed(6);
+        });
+      }
+    }
+
+    async function savePhoto() {
+      const place = document.getElementById('input-place').value.trim();
+      const lat = parseFloat(document.getElementById('input-lat').value);
+      const lng = parseFloat(document.getElementById('input-lng').value);
+      const date = document.getElementById('input-date').value;
+      const notes = document.getElementById('input-notes').value.trim();
+      const planId = document.getElementById('modal-plan-id').value;
+      const filesToUpload = pendingFiles.length > 0 ? pendingFiles : (pendingFile ? [pendingFile] : []);
+
+      if (!place) { alert('Please enter a place name.'); return; }
+      if (isNaN(lat) || isNaN(lng)) { alert('Please enter valid coordinates.\n\nTip: click on the map to auto-fill!'); return; }
+      if (!filesToUpload.length) { alert('Please select at least one photo.'); return; }
+
+      const btn = document.getElementById('btn-modal-save');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+
+      try {
+        const savedIds = [];
+        for (let i = 0; i < filesToUpload.length; i++) {
+          btn.textContent = `Saving ${i + 1}/${filesToUpload.length}…`;
+          const formData = new FormData();
+          formData.append('image', filesToUpload[i]);
+          formData.append('place', place);
+          formData.append('lat', lat);
+          formData.append('lng', lng);
+          if (date) formData.append('date', date);
+          if (notes) formData.append('notes', notes);
+          const saved = await apiSavePhoto(formData);
+          saved.planId = planId || null;   // null = standalone, truthy = grouped
+          photos.unshift(saved);
+          savedIds.push(saved.id);
+        }
+
+        // planId is already set on each saved photo by the backend (PhotoDto.planId).
+        // Refresh the matching plan from the server so its photoIds count is current.
+        if (planId) {
+          try {
+            const refreshed = await apiFetch(`/plans/${planId}`);
+            const idx = plans.findIndex(x => x.id === planId);
+            if (idx > -1) plans[idx] = refreshed;
+          } catch (_) { }
+        }
+
+        closeUploadModal();
+        renderAll();
+        const msg = filesToUpload.length > 1
+          ? `${filesToUpload.length} photos saved!`
+          : (planId ? 'Photo attached to plan!' : 'Memory saved!');
+        showToast(msg);
+        if (!planId) setTimeout(() => selectPhoto(savedIds[savedIds.length - 1]), 200);
+      } catch (e) {
+        showToast('Save failed: ' + e.message, 'error');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // ── EXIF GPS reader (basic) ───────────────────────────────────────────────
+    async function readExifGPS(file) {
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const buf = e.target.result;
+            const view = new DataView(buf);
+            // JPEG check
+            if (view.getUint16(0) !== 0xFFD8) { resolve({}); return; }
+            let offset = 2;
+            while (offset < buf.byteLength) {
+              const marker = view.getUint16(offset);
+              if (marker === 0xFFE1) { // APP1
+                const len = view.getUint16(offset + 2);
+                const exifStr = String.fromCharCode(...new Uint8Array(buf, offset + 4, 4));
+                if (exifStr === 'Exif') {
+                  const tiffStart = offset + 10;
+                  const byteOrder = view.getUint16(tiffStart);
+                  const le = byteOrder === 0x4949;
+                  const ifdOffset = view.getUint32(tiffStart + 4, le);
+                  const entries = view.getUint16(tiffStart + ifdOffset, le);
+                  let gpsIFDOffset = null;
+                  for (let i = 0; i < entries; i++) {
+                    const tag = view.getUint16(tiffStart + ifdOffset + 2 + i * 12, le);
+                    if (tag === 0x8825) { gpsIFDOffset = view.getUint32(tiffStart + ifdOffset + 2 + i * 12 + 8, le); }
+                  }
+                  if (gpsIFDOffset !== null) {
+                    const gpsEntries = view.getUint16(tiffStart + gpsIFDOffset, le);
+                    let latRef, lat, lngRef, lng;
+                    for (let i = 0; i < gpsEntries; i++) {
+                      const base = tiffStart + gpsIFDOffset + 2 + i * 12;
+                      const tag = view.getUint16(base, le);
+                      const valOffset = view.getUint32(base + 8, le);
+                      if (tag === 1) latRef = String.fromCharCode(view.getUint8(base + 8));
+                      if (tag === 3) lngRef = String.fromCharCode(view.getUint8(base + 8));
+                      if (tag === 2) lat = readRational3(view, tiffStart + valOffset, le);
+                      if (tag === 4) lng = readRational3(view, tiffStart + valOffset, le);
+                    }
+                    if (lat !== undefined && lng !== undefined) {
+                      const latDec = lat[0] + lat[1] / 60 + lat[2] / 3600;
+                      const lngDec = lng[0] + lng[1] / 60 + lng[2] / 3600;
+                      resolve({ lat: latRef === 'S' ? -latDec : latDec, lng: lngRef === 'W' ? -lngDec : lngDec });
+                      return;
+                    }
+                  }
+                }
+              }
+              offset += 2 + view.getUint16(offset + 2);
+            }
+          } catch (_) { }
+          resolve({});
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+    function readRational3(view, offset, le) {
+      return [
+        view.getUint32(offset, le) / view.getUint32(offset + 4, le),
+        view.getUint32(offset + 8, le) / view.getUint32(offset + 12, le),
+        view.getUint32(offset + 16, le) / view.getUint32(offset + 20, le),
+      ];
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function formatDate(str) {
+      if (!str) return '';
+      const d = new Date(str + 'T00:00:00');
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    // ── Toast notifications ────────────────────────────────────────────────────
+    function showToast(msg, type = 'success') {
+      const t = document.createElement('div');
+      t.textContent = msg;
+      Object.assign(t.style, {
+        position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
+        background: type === 'error' ? '#6b3333' : '#1a1510',
+        color: type === 'error' ? '#e07575' : '#c9a84c',
+        border: `1.5px solid ${type === 'error' ? '#9b4444' : '#c9a84c'}`,
+        padding: '.55rem 1.4rem', borderRadius: '2px',
+        fontFamily: "'DM Sans', sans-serif", fontSize: '.82rem', letterSpacing: '.04em',
+        zIndex: '999', pointerEvents: 'none',
+        transition: 'opacity .4s', opacity: '1',
+      });
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2800);
+    }
+
+    // Close modal on outside click
+    document.getElementById('upload-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeUploadModal();
+    });
+
+    // ── Resizable panel ────────────────────────────────────────────────────────
+    (function () {
+      const resizer = document.getElementById('resizer');
+      const gallery = document.getElementById('gallery-panel');
+      const appEl = document.getElementById('app');
+      let dragging = false;
+      let startX = 0;
+      let startWidth = 0;
+
+      const MIN_W = 280;   // px — gallery minimum
+      const MAX_RATIO = 0.78;  // gallery can take at most 78% of viewport
+
+      resizer.addEventListener('mousedown', (e) => {
+        dragging = true;
+        startX = e.clientX;
+        startWidth = gallery.getBoundingClientRect().width;
+        resizer.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const delta = e.clientX - startX;
+        const maxW = window.innerWidth * MAX_RATIO;
+        const newW = Math.min(maxW, Math.max(MIN_W, startWidth + delta));
+        gallery.style.width = newW + 'px';
+        // Keep detail drawer in sync with map panel width
+        const mapW = window.innerWidth - newW - 5; // 5px resizer
+        const drawer = document.getElementById('detail-drawer');
+        if (drawer) drawer.style.width = Math.max(240, mapW) + 'px';
+        const pdrawer = document.getElementById('plan-drawer');
+        if (pdrawer) pdrawer.style.width = Math.max(240, mapW) + 'px';
+        // Trigger Google Maps resize so tiles fill the new width
+        if (map) google.maps.event.trigger(map, 'resize');
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        resizer.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        if (map) google.maps.event.trigger(map, 'resize');
+      });
+
+      // Touch support
+      resizer.addEventListener('touchstart', (e) => {
+        dragging = true;
+        startX = e.touches[0].clientX;
+        startWidth = gallery.getBoundingClientRect().width;
+        resizer.classList.add('dragging');
+        e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener('touchmove', (e) => {
+        if (!dragging) return;
+        const delta = e.touches[0].clientX - startX;
+        const maxW = window.innerWidth * MAX_RATIO;
+        const newW = Math.min(maxW, Math.max(MIN_W, startWidth + delta));
+        gallery.style.width = newW + 'px';
+        if (map) google.maps.event.trigger(map, 'resize');
+      }, { passive: false });
+
+      document.addEventListener('touchend', () => {
+        dragging = false;
+        resizer.classList.remove('dragging');
+        if (map) google.maps.event.trigger(map, 'resize');
+      });
+    })();
+  </script>
+</body>
+
+</html>
